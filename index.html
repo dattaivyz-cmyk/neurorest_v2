@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}</style>
+</head>
+<body>
+<title>NeuroRest Prototype</title>
+<style>
+/* Layout: a short brief on the left, the working app on the right; stacks on phones.
+   The page chrome follows the viewer's theme. The app inside the phone is the product's
+   own light design, so it keeps its colors on purpose. */
+:root{
+  --bg:#ecebe6; --fg:#1c1c1f; --muted:#626268; --line:#d4d3cc; --accent:#006b6b; --link:#005a5a;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+
+  /* app (fixed, matches the iOS build) */
+  --a-paper:#f9f9f6; --a-surface:#ffffff; --a-hair:#deded9;
+  --a-ink:#17171a; --a-muted:#6b6b70; --a-faint:#9e9ea3;
+  --a-accent:#006b6b; --a-attn:#b86b26; --a-signal:#00b8b3;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#141516; --fg:#e8e8e4; --muted:#a0a0a6; --line:#2d2e30; --accent:#58bdb8; --link:#7fd2cd; color-scheme:dark }
+}
+:root[data-theme="dark"]{ --bg:#141516; --fg:#e8e8e4; --muted:#a0a0a6; --line:#2d2e30; --accent:#58bdb8; --link:#7fd2cd; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 64px}
+.wrap{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 392px;gap:56px;align-items:start}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr);gap:32px}}
+
+/* ---------- brief ---------- */
+.brief{min-width:0;max-width:560px;padding-top:12px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.brief h1{font-size:clamp(26px,3.4vw,36px);line-height:1.15;font-weight:600;letter-spacing:-.015em;margin:12px 0 16px;text-wrap:balance}
+.brief p{font-size:16px;line-height:1.6;margin:0 0 14px;max-width:62ch}
+.facts{list-style:none;padding:0;margin:26px 0 0;border-top:1px solid var(--line)}
+.facts li{padding:14px 0;border-bottom:1px solid var(--line);font-size:15px;line-height:1.5}
+.facts .src{display:block;font-size:12.5px;color:var(--muted);margin-top:4px}
+.facts a,.brief a{color:var(--link);text-underline-offset:2px}
+.steps{margin:26px 0 0;padding:0;list-style:none;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:15px;line-height:1.5;margin-bottom:8px}
+.steps li::before{content:counter(s);font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums}
+.note{font-size:13px;color:var(--muted);line-height:1.55;margin-top:22px;max-width:60ch}
+.by{font-size:13px;color:var(--muted);margin-top:18px}
+
+/* ---------- phone ---------- */
+.phone{width:392px;max-width:100%;border-radius:52px;background:#0d0d0e;padding:11px;box-shadow:0 30px 60px -20px rgba(0,0,0,.35)}
+@media (max-width:520px){.phone{width:100%;padding:0;background:none;box-shadow:none;border-radius:0}}
+.app{position:relative;height:780px;border-radius:42px;overflow:hidden;background:var(--a-paper);color:var(--a-ink);
+  font-family:var(--sans);font-size:15px;-webkit-tap-highlight-color:transparent}
+@media (max-width:520px){.app{border-radius:28px;height:760px;border:1px solid var(--line)}}
+
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--a-paper)}
+.screen[hidden]{display:none!important}
+.status{height:46px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 6px;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.status .dots{letter-spacing:2px;font-size:10px}
+.hdr{flex:none;display:flex;justify-content:space-between;align-items:center;padding:10px 22px;border-bottom:1px solid var(--a-hair)}
+.lbl{font-size:10.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--a-faint)}
+.hdr .lbl:first-child{color:var(--a-muted);letter-spacing:.16em}
+.scroll{flex:1;overflow-y:auto;padding:0 22px 24px;min-height:0}
+.sec{border-top:1px solid var(--a-hair);padding:15px 0}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.title{font-size:27px;font-weight:600;letter-spacing:-.01em;line-height:1.15;margin:22px 0 8px}
+.lede{font-size:15px;color:var(--a-muted);line-height:1.5;margin:0 0 20px}
+.big{font-size:40px;font-weight:300;font-variant-numeric:tabular-nums;line-height:1}
+.small{font-size:13px;color:var(--a-muted);line-height:1.45}
+.faint{color:var(--a-faint)}
+.name{font-size:16px;font-weight:600;margin-top:5px}
+.chev{color:var(--a-faint);font-size:20px;line-height:1}
+.tap{cursor:pointer}
+.tap:focus-visible,.btn:focus-visible,.tab:focus-visible,.link:focus-visible{outline:2px solid var(--a-accent);outline-offset:2px;border-radius:6px}
+
+.btnbar{flex:none;border-top:1px solid var(--a-hair);padding:14px 22px 16px;background:var(--a-paper);display:grid;gap:10px}
+.btn{display:block;width:100%;font:inherit;font-size:16px;font-weight:600;padding:15px;border-radius:10px;border:1px solid transparent;cursor:pointer;text-align:center}
+.btn.fill{background:var(--a-accent);color:#fff}
+.btn.out{background:var(--a-surface);color:var(--a-accent);border-color:var(--a-hair)}
+.btn.plain{background:none;color:var(--a-muted);font-weight:400;padding:10px}
+.link{background:none;border:0;font:inherit;color:var(--a-accent);font-size:14px;cursor:pointer;padding:6px 0}
+
+.tabs{flex:none;display:flex;justify-content:space-around;border-top:1px solid var(--a-hair);padding:8px 0 22px;background:var(--a-paper)}
+.tab{background:none;border:0;font:inherit;font-size:10.5px;color:var(--a-faint);display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:4px 14px}
+.tab svg{width:22px;height:22px}
+.tab[aria-current="page"]{color:var(--a-accent)}
+
+.tag{font-size:9.5px;letter-spacing:.1em;font-weight:500;padding:3px 8px;border-radius:99px;border:1px solid var(--a-hair);color:var(--a-muted);white-space:nowrap}
+.tag.ride{border-color:var(--a-accent);color:var(--a-accent)}
+
+/* trace */
+.trace{position:relative;display:flex;align-items:flex-end;gap:3px}
+.trace .thr{position:absolute;left:0;right:0;height:1px;background:var(--a-hair)}
+.trace .bar{flex:1;border-radius:3px;background:#adadb1;transition:height .28s cubic-bezier(.2,.9,.3,1.25),opacity .2s}
+.trace .bar.slow{background:var(--a-attn)}
+.trace .bar.missed{background:rgba(184,107,38,.35)}
+.trace .bar.early{background:rgba(158,158,163,.5)}
+
+/* night run */
+.run{display:flex;gap:8px;margin-top:10px}
+.run span{flex:1;height:5px;border-radius:3px;background:var(--a-hair)}
+.run span.on{background:var(--a-accent)}
+
+/* check (dark on purpose) */
+#check{background:#000;color:#fff;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none}
+#check .cancel{position:absolute;top:56px;left:22px;background:none;border:0;color:rgba(255,255,255,.55);font:inherit;font-size:15px;cursor:pointer}
+#check .sample{position:absolute;bottom:40px;left:0;right:0;text-align:center}
+#check .sample button{background:none;border:0;color:rgba(255,255,255,.55);font:inherit;font-size:14px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.ring{width:140px;height:140px;border-radius:50%;border:2px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:13px}
+.ring.dot{background:var(--a-signal);border-color:var(--a-signal)}
+.ring.fb{border-color:rgba(0,184,179,.6)}
+.ring.soon{border-color:var(--a-attn);color:var(--a-attn)}
+.pdots{display:flex;gap:6px;margin-top:48px}
+.pdots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.15)}
+.pdots i.on{background:rgba(255,255,255,.72)}
+.ready{position:absolute;top:44%;font-size:17px;font-weight:600;color:rgba(255,255,255,.6)}
+
+/* result */
+.headnum{display:flex;align-items:baseline;gap:12px;margin-top:28px}
+.headnum .n{font-size:76px;font-weight:200;line-height:1;font-variant-numeric:tabular-nums}
+.headnum .t{font-size:16px;font-weight:600;line-height:1.3}
+.reveal{transition:opacity .4s ease,transform .4s ease}
+.pre{opacity:0;transform:translateY(8px);pointer-events:none}
+.obs p{margin:0;font-size:15px;line-height:1.5}
+.cmp{display:flex;gap:36px;margin-top:10px}
+
+/* nap */
+.island{margin:18px auto 0;width:210px;height:36px;border-radius:20px;background:#000;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:13px;font-variant-numeric:tabular-nums}
+.island i{width:8px;height:8px;border-radius:50%;background:var(--a-signal)}
+
+/* scan */
+.paper{margin-top:14px;background:#fff;border:1px solid var(--a-hair);border-radius:4px;padding:12px;transform:rotate(-1.2deg);box-shadow:0 8px 18px -10px rgba(0,0,0,.25);font-family:"Courier New",Courier,monospace;font-size:11px}
+.paper table{width:100%;border-collapse:collapse}
+.paper td,.paper th{border:1px solid #cfcfc8;padding:4px 3px;text-align:center}
+.paper th{font-weight:700;background:#f2f2ee}
+.paper .you{background:#fbfbe9;font-weight:700}
+.check-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--a-hair);font-size:15px}
+.check-row input{width:20px;height:20px;accent-color:var(--a-accent)}
+
+.toast{position:absolute;left:18px;right:18px;bottom:96px;background:var(--a-ink);color:#fff;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.45;opacity:0;transform:translateY(8px);transition:.25s;pointer-events:none;z-index:5}
+.toast.show{opacity:1;transform:none}
+
+@media (prefers-reduced-motion: reduce){
+  .trace .bar,.reveal,.toast{transition:none}
+}
+</style>
+
+<div class="wrap">
+  <section class="brief">
+    <div class="eyebrow">NeuroRest · clickable prototype</div>
+    <h1>A 45-second check before driving home from a night shift</h1>
+    <p>Residents and nurses finishing night shifts and long calls take a short reaction-time check at the end of the shift. It compares them only to their own rested checks. If they come back off, one tap gets them the ride or the call-room nap their program already provides.</p>
+    <p>It never tells anyone they are safe to drive. It shows how this check compares to their usual, and the decision stays theirs.</p>
+
+    <ul class="facts">
+      <li>Interns coming off shifts longer than 24 hours were more than twice as likely to crash driving home, and about five times as likely to have a near-miss.
+        <span class="src">Barger et al., <i>New England Journal of Medicine</i>, 2005. 2,737 interns. <a href="https://archive.cdc.gov/www_cdc_gov/niosh/updates/upd-01-13-05.html" target="_blank" rel="noopener">Summary</a></span></li>
+      <li>On a closed track, 37.5% of night-shift workers had a near-crash driving after their shift. None did after a normal night's sleep.
+        <span class="src">Lee et al., <i>PNAS</i>, 2015. 16 participants. <a href="https://www.libertymutualgroup.com/about-lm/news/articles/high-drowsy-driving-crash-risk-daytime-commute-after-night-work" target="_blank" rel="noopener">Summary</a></span></li>
+      <li>Programs must provide safe transportation for residents who may be too fatigued to drive home, and sleep facilities.
+        <span class="src">ACGME Institutional Requirements, 2026, 3.2.g.5.b and 3.2.g.5.c. <a href="https://www.acgme.org/globalassets/pfassets/programrequirements/2026-prs/800_institutionalrequirements_2026.pdf" target="_blank" rel="noopener">PDF</a></span></li>
+    </ul>
+
+    <ol class="steps">
+      <li><span>Tap <b>Check before driving</b> and do the 15-tap check, or use the sample post-shift result.</span></li>
+      <li><span>Choose a ride home, a call-room nap and a second check, or driving.</span></li>
+      <li><span>Look through History, Method, and the schedule scan on the Shift tab.</span></li>
+    </ol>
+
+    <p class="note">Prototype with sample data. Nothing you do here is saved or sent. Reaction times in a browser are approximate; the iPhone app times taps on touch-down. In the app, all data stays on the phone and there is no supervisor view.</p>
+    <p class="by">Made by Ivy Datta</p>
+  </section>
+
+  <div class="phone">
+    <div class="app" id="app">
+
+      <!-- SHIFT (home) -->
+      <section class="screen" id="home" aria-label="Shift">
+        <div class="status"><span>7:06</span><span class="dots">●●●</span></div>
+        <div class="hdr"><span class="lbl">NeuroRest</span><span class="lbl">Thu 7:06 AM</span></div>
+        <div class="scroll">
+          <h2 class="title">Night shift ended 6 minutes ago</h2>
+          <p class="lede">Third night in a row. Check before you drive home.</p>
+
+          <div class="sec" id="lastCheck"></div>
+
+          <div class="sec">
+            <div class="row"><span class="lbl">This block</span><span class="lbl">Night 3 of 3</span></div>
+            <div class="run"><span class="on"></span><span class="on"></span><span class="on"></span></div>
+            <div class="small" style="margin-top:8px">Mon, Tue, Wed nights · 7 PM to 7 AM</div>
+          </div>
+
+          <div class="sec tap" role="button" tabindex="0" id="rideRow">
+            <div class="row">
+              <div><div class="lbl">Your ride home</div><div class="name">Uber</div>
+                <div class="small">Program reimburses rides after night shifts</div></div>
+              <span class="chev">›</span>
+            </div>
+          </div>
+
+          <div class="sec">
+            <div class="lbl">Next shift</div>
+            <div class="name">Sat 7:00 PM, night</div>
+            <div class="small">Nap reminder set for Sat 2:00 PM</div>
+          </div>
+
+          <div class="sec">
+            <div class="row">
+              <div><div class="lbl">Schedule</div><div class="small" style="margin-top:5px">6 upcoming shifts</div></div>
+              <button class="link" id="openScan">Scan a schedule</button>
+            </div>
+          </div>
+        </div>
+        <div class="btnbar"><button class="btn fill" id="startCheck">Check before driving</button></div>
+        <nav class="tabs" aria-label="Tabs"></nav>
+      </section>
+
+      <!-- CHECK -->
+      <section class="screen" id="check" hidden aria-label="Check">
+        <button class="cancel" id="cancelCheck">Cancel</button>
+        <div class="ready" id="readyText">Get ready</div>
+        <div class="ring" id="ring"></div>
+        <div class="pdots" id="pdots"></div>
+        <div class="sample"><button id="useSample">Use a sample post-shift result</button></div>
+      </section>
+
+      <!-- RESULT -->
+      <section class="screen" id="result" hidden aria-label="Result">
+        <div class="status"><span>7:08</span><span class="dots">●●●</span></div>
+        <div class="scroll" style="padding-top:16px">
+          <div class="lbl" id="resLabel">Result</div>
+          <div class="reveal pre" id="resHead">
+            <div class="headnum"><span class="n" id="resNum">0</span><span class="t" id="resText"></span></div>
+            <p class="lede" style="margin:12px 0 0" id="resContext"></p>
+          </div>
+          <div class="trace" id="resTrace" style="height:96px;margin-top:28px"></div>
+          <div class="small faint" style="margin-top:8px">Each line is one response, in order. Taller is slower. Colored lines took over half a second.</div>
+          <div class="reveal pre obs" id="resObs" style="margin-top:18px"></div>
+          <div class="reveal pre" id="resCmp"></div>
+          <div class="small faint reveal pre" id="resNote" style="margin-top:16px">Compared with a sample history of 12 earlier checks.</div>
+        </div>
+        <div class="btnbar reveal pre" id="resActions">
+          <button class="btn" id="actRide">Get a ride home</button>
+          <button class="btn out" id="actNap">Nap in a call room, then check again</button>
+          <button class="btn plain" id="actDrive">I'm driving</button>
+        </div>
+      </section>
+
+      <!-- RIDE -->
+      <section class="screen" id="ride" hidden aria-label="Ride home">
+        <div class="status"><span>7:09</span><span class="dots">●●●</span></div>
+        <div class="scroll" style="padding-top:16px">
+          <div class="lbl">Your ride home</div>
+          <h2 class="title">Uber, pickup where you are</h2>
+          <p class="lede">Set up once, while rested. One tap from any result.</p>
+          <div class="sec">
+            <div class="lbl">Your program's policy</div>
+            <p style="margin:8px 0 0;line-height:1.5">Rides home after night shifts and 24-hour calls are reimbursed. Keep the receipt and submit it to the GME office within 30 days.</p>
+            <div class="small faint" style="margin-top:6px">Written by you during setup, from your program's actual policy.</div>
+          </div>
+          <div class="sec">
+            <div class="lbl">Other options you set up</div>
+            <div class="row" style="margin-top:8px"><span>Text Mom</span><span class="small">with your location</span></div>
+            <div class="row" style="margin-top:8px"><span>Security desk</span><span class="small">ext. 4-2100</span></div>
+          </div>
+        </div>
+        <div class="btnbar">
+          <button class="btn fill" id="openUber">Open Uber</button>
+          <button class="btn plain" id="rideDone">Done</button>
+        </div>
+      </section>
+
+      <!-- NAP -->
+      <section class="screen" id="nap" hidden aria-label="Nap">
+        <div class="status"><span>7:10</span><span class="dots">●●●</span></div>
+        <div class="scroll" style="padding-top:16px">
+          <div class="lbl">Nap, then check again</div>
+          <div class="big" id="napClock" style="font-size:64px;margin-top:26px">20:00</div>
+          <div class="small" id="napPhase" style="margin-top:6px">Nap. Your alarm goes off at 7:30.</div>
+          <div class="sec" style="margin-top:22px">
+            <p style="margin:0;line-height:1.55">Your program has to provide a place to sleep, so use a call room. When the alarm goes off, stay up for 15 minutes before the second check. Right after waking, everyone is slower for a while, and checking too early would make the nap look like it didn't help.</p>
+          </div>
+          <div class="sec">
+            <div class="lbl">On your Lock Screen</div>
+            <div class="island"><i></i><span>Second check</span><span id="islandTime">20:00</span></div>
+          </div>
+        </div>
+        <div class="btnbar" id="napActions">
+          <button class="btn out" id="napSkip">Skip ahead (prototype)</button>
+          <button class="btn plain" id="napCancel">Cancel the nap</button>
+        </div>
+      </section>
+
+      <!-- HISTORY -->
+      <section class="screen" id="history" hidden aria-label="History">
+        <div class="status"><span>7:06</span><span class="dots">●●●</span></div>
+        <div class="hdr"><span class="lbl">History</span><span></span></div>
+        <div class="scroll">
+          <div style="display:flex;padding:20px 0 16px" id="impact"></div>
+          <div class="sec">
+            <div class="lbl">Your pattern</div>
+            <div style="margin-top:5px">Slower after the third night in a row</div>
+            <div class="small">Based on 18 checks over 4 blocks</div>
+          </div>
+          <div id="historyList"></div>
+        </div>
+        <nav class="tabs" aria-label="Tabs"></nav>
+      </section>
+
+      <!-- METHOD -->
+      <section class="screen" id="method" hidden aria-label="Method">
+        <div class="status"><span>7:06</span><span class="dots">●●●</span></div>
+        <div class="hdr"><span class="lbl">Method</span><span></span></div>
+        <div class="scroll">
+          <h2 class="title" style="font-size:22px">How the check works, and what it can't tell you</h2>
+          <div class="sec"><div class="lbl">What it measures</div><p style="line-height:1.55;margin:8px 0 0">A short version of the psychomotor vigilance task, the reaction-time test sleep researchers use. A dot appears at random moments and you tap as fast as you can, 15 times. NeuroRest counts responses slower than half a second.</p></div>
+          <div class="sec"><div class="lbl">Compared only to you</div><p style="line-height:1.55;margin:8px 0 0">Phones add their own delay and people differ, so there are no population cutoffs. Your usual is learned from your own checks, ideally at the start of shifts when you're rested.</p></div>
+          <div class="sec"><div class="lbl">What it can't tell you</div><p style="line-height:1.55;margin:8px 0 0">It can't tell you whether you're safe to drive. No phone test has been shown to predict crash risk, so NeuroRest never says you're fine. It is shorter than the validated 3-minute version, so single results are rough. It is not a medical device.</p></div>
+          <div class="sec"><div class="lbl">Privacy</div><p style="line-height:1.55;margin:8px 0 0">Everything stays on your phone. There's no account and no supervisor view. The only thing that ever leaves the phone is a call or text you choose to make.</p></div>
+          <div class="sec"><div class="lbl">Sources</div>
+            <p class="small" style="margin:8px 0 0">Barger et al. (2005), <i>NEJM</i> 352:125-134. Lee et al. (2015), <i>PNAS</i>. ACGME Institutional Requirements (2026). Basner, Mollicone &amp; Dinges (2011), <i>Acta Astronautica</i>. Van Dongen et al. (2003), <i>Sleep</i> 26(2):117-126. Doran, Van Dongen &amp; Dinges (2001), <i>Archives Italiennes de Biologie</i> 139:253-267.</p></div>
+        </div>
+        <nav class="tabs" aria-label="Tabs"></nav>
+      </section>
+
+      <!-- SCAN -->
+      <section class="screen" id="scan" hidden aria-label="Scan a schedule">
+        <div class="status"><span>7:07</span><span class="dots">●●●</span></div>
+        <div class="scroll" style="padding-top:16px">
+          <div class="lbl">Scan a schedule</div>
+          <h2 class="title" style="font-size:22px" id="scanTitle">Point your camera at a schedule, or pick a screenshot</h2>
+          <div class="paper" id="paper">
+            <div style="font-weight:700;margin-bottom:6px">INTERNAL MED · NIGHT FLOAT · OCT 2026</div>
+            <table>
+              <tr><th></th><th>18</th><th>19</th><th>20</th><th>21</th><th>22</th><th>23</th><th>24</th></tr>
+              <tr><td>A. R.</td><td>D</td><td>D</td><td>-</td><td>N</td><td>N</td><td>N</td><td>-</td></tr>
+              <tr class="you"><td>YOU</td><td>N</td><td>N</td><td>-</td><td>-</td><td>D</td><td>D</td><td>N</td></tr>
+              <tr><td>M. K.</td><td>-</td><td>D</td><td>D</td><td>D</td><td>-</td><td>N</td><td>N</td></tr>
+            </table>
+            <div style="margin-top:6px">D = 7A-7P · N = 7P-7A</div>
+          </div>
+          <div id="scanFound" hidden></div>
+          <p class="small" style="margin-top:16px" id="scanNote">Read on your phone. The schedule never leaves it.</p>
+        </div>
+        <div class="btnbar">
+          <button class="btn fill" id="scanGo">Read schedule</button>
+          <button class="btn plain" id="scanBack">Back</button>
+        </div>
+      </section>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- sample data ----------
+  function seeded(seed){ let s = seed; return () => (s = (s * 9301 + 49297) % 233280) / 233280; }
+  function makeTrials(slow, seed, missed=0, early=0){
+    const r = seeded(seed), t = [];
+    for (let i=0;i<15-missed-early;i++){
+      if (i < slow) t.push({ms: 520 + r()*380, kind:'slow'});
+      else t.push({ms: 250 + r()*170, kind:'valid'});
+    }
+    for (let i=0;i<missed;i++) t.push({ms:null, kind:'missed'});
+    for (let i=0;i<early;i++) t.push({ms:null, kind:'early'});
+    for (let i=t.length-1;i>0;i--){ const j = Math.floor(r()*(i+1)); [t[i],t[j]]=[t[j],t[i]]; }
+    return t;
+  }
+  const USUAL = 1;
+  const history = [
+    {when:'Tue Oct 14, 7:04 AM', trials:makeTrials(1,11), decision:'drive'},
+    {when:'Mon Oct 13, 7:10 AM', trials:makeTrials(2,12), decision:'drive'},
+    {when:'Sun Oct 12, 6:55 PM', trials:makeTrials(0,13), decision:null, note:'start of shift'},
+    {when:'Fri Oct 10, 7:12 AM', trials:makeTrials(5,14), decision:'ride'},
+    {when:'Thu Oct 9, 7:03 AM',  trials:makeTrials(4,15,0,1), decision:'wait'},
+  ];
+  let impact = {checks:18, above:4, rides:3};
+  let current = null;      // the session on the result screen
+  let firstOfRetest = null;
+
+  const slowOf = t => t.filter(x => x.kind==='slow').length;
+  function level(slow){
+    const gap = slow - USUAL;
+    if (gap > 2) return 'wellAbove';
+    if (gap > 1) return 'above';
+    return 'typical';
+  }
+  const isOff = l => l==='above' || l==='wellAbove';
+
+  // ---------- trace ----------
+  function drawTrace(el, trials, animate, done){
+    el.innerHTML = '';
+    const h = el.clientHeight || parseFloat(el.style.height) || 60;
+    const thr = document.createElement('div');
+    thr.className = 'thr'; thr.style.bottom = (h*0.5) + 'px'; el.appendChild(thr);
+    const bars = trials.map(t => {
+      const b = document.createElement('div');
+      b.className = 'bar ' + t.kind;
+      const target = t.kind==='missed' ? h : t.kind==='early' ? 4 : Math.max(4, h*Math.min(t.ms,1000)/1000);
+      b.dataset.h = target;
+      b.style.height = (animate && !reduce ? 2 : target) + 'px';
+      if (animate && !reduce) b.style.opacity = .3;
+      el.appendChild(b);
+      return b;
+    });
+    if (!animate || reduce){ done && done(); return; }
+    let i = 0;
+    setTimeout(function step(){
+      if (i >= bars.length){ setTimeout(()=>done && done(), 200); return; }
+      bars[i].style.height = bars[i].dataset.h + 'px';
+      bars[i].style.opacity = 1;
+      if (navigator.vibrate && trials[i].kind==='slow') { try{ navigator.vibrate(25); }catch(e){} }
+      i++; setTimeout(step, 90);
+    }, 350);
+  }
+
+  // ---------- tabs ----------
+  const tabDefs = [
+    {id:'home', label:'Shift', icon:'<path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z" fill="none" stroke="currentColor" stroke-width="1.6"/>'},
+    {id:'history', label:'History', icon:'<path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'},
+    {id:'method', label:'Method', icon:'<rect x="5" y="3" width="14" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'},
+  ];
+  document.querySelectorAll('.tabs').forEach(nav => {
+    const owner = nav.closest('.screen').id;
+    nav.innerHTML = tabDefs.map(t =>
+      `<button class="tab" data-go="${t.id}" ${t.id===owner?'aria-current="page"':''}><svg viewBox="0 0 24 24" aria-hidden="true">${t.icon}</svg>${t.label}</button>`
+    ).join('');
+  });
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-go]');
+    if (b) show(b.dataset.go);
+  });
+
+  function show(id){
+    document.querySelectorAll('.screen').forEach(s => s.hidden = (s.id !== id));
+    if (id==='home') renderHome();
+    if (id==='history') renderHistory();
+  }
+
+  let toastTimer;
+  function toast(msg){
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'), 3400);
+  }
+
+  const tagHTML = d => d==='ride' ? '<span class="tag ride">TOOK A RIDE</span>'
+                    : d==='wait' ? '<span class="tag">NAPPED</span>'
+                    : d==='drive' ? '<span class="tag">DROVE</span>' : '';
+  const summary = (slow, total) => {
+    const l = level(slow);
+    return `slow of ${total}, ` + (l==='typical' ? 'about your usual' : l==='above' ? 'above your usual' : 'well above your usual');
+  };
+
+  // ---------- home ----------
+  function renderHome(){
+    const last = history[0];
+    const slow = slowOf(last.trials);
+    const lv = level(slow);
+    $('lastCheck').innerHTML = `
+      <div class="row"><span class="lbl">Last check</span><span class="lbl">${last.when.split(',')[0]}</span></div>
+      <div class="row" style="margin-top:10px;align-items:baseline">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span class="big" style="color:${isOff(lv)?'var(--a-attn)':'var(--a-ink)'}">${slow}</span>
+          <span class="small">${summary(slow, last.trials.length)}</span>
+        </div>${tagHTML(last.decision)}
+      </div>
+      <div class="trace" style="height:64px;margin-top:12px"></div>`;
+    drawTrace($('lastCheck').querySelector('.trace'), last.trials, false);
+  }
+
+  // ---------- history ----------
+  function renderHistory(){
+    const stat = (v, l, c, div) => `<div style="flex:1;min-width:0;${div?'border-left:1px solid var(--a-hair);padding-left:12px':''}">
+        <div class="big" style="font-size:32px;color:${c}">${v}</div><div class="small" style="margin-top:3px">${l}</div></div>`;
+    $('impact').innerHTML = stat(impact.checks,'checks','var(--a-ink)',false)
+                          + stat(impact.above,'above your usual','var(--a-attn)',true)
+                          + stat(impact.rides,'rides taken after one','var(--a-accent)',true);
+    $('historyList').innerHTML = history.map((h,i) => {
+      const slow = slowOf(h.trials);
+      return `<div class="sec">
+        <div class="row"><span class="small">${h.when}${h.note?` · ${h.note}`:''}${h.retest?' · second check':''}</span>${tagHTML(h.decision)}</div>
+        <div style="display:flex;align-items:baseline;gap:7px;margin-top:6px">
+          <span style="font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;color:${isOff(level(slow))?'var(--a-attn)':'var(--a-ink)'}">${slow}</span>
+          <span class="small">${summary(slow, h.trials.length)}</span></div>
+        <div class="trace" data-i="${i}" style="height:30px;margin-top:8px"></div></div>`;
+    }).join('');
+    $('historyList').querySelectorAll('.trace').forEach(el => drawTrace(el, history[+el.dataset.i].trials, false));
+  }
+
+  // ---------- check ----------
+  let chk = null;
+  function renderDots(){
+    $('pdots').innerHTML = Array.from({length:15},(_,i)=>`<i class="${chk && i<chk.trials.length?'on':''}"></i>`).join('');
+  }
+  function setRing(state){
+    const r = $('ring');
+    r.className = 'ring' + (state==='stimulus'?' dot':state==='feedback'?' fb':state==='tooSoon'?' soon':'');
+    r.textContent = state==='tooSoon' ? 'Too soon' : '';
+    $('ring').style.visibility = state==='ready' ? 'hidden' : 'visible';
+    $('readyText').hidden = state !== 'ready';
+  }
+  function startCheck(){
+    show('check');
+    chk = {trials:[], phase:'ready', timer:null, t0:0};
+    setRing('ready'); renderDots();
+    chk.timer = setTimeout(nextTrial, 1200);
+  }
+  function stopCheck(){ if (chk){ clearTimeout(chk.timer); chk = null; } }
+  function nextTrial(){
+    if (!chk) return;
+    if (chk.trials.length >= 15){ finishCheck(chk.trials); return; }
+    chk.phase = 'waiting'; setRing('waiting');
+    chk.timer = setTimeout(() => {
+      chk.phase = 'stimulus'; setRing('stimulus');
+      requestAnimationFrame(() => { if (chk) chk.t0 = performance.now(); });
+      chk.timer = setTimeout(() => { record({ms:null, kind:'missed'}); feedback(); }, 2500);
+    }, 1000 + Math.random()*2000);
+  }
+  function record(t){ chk.trials.push(t); renderDots(); }
+  function feedback(){ chk.phase = 'feedback'; setRing('feedback'); chk.timer = setTimeout(nextTrial, 350); }
+  $('check').addEventListener('pointerdown', e => {
+    if (!chk || e.target.closest('button')) return;
+    e.preventDefault();
+    const now = performance.now();
+    if (chk.phase === 'waiting'){
+      clearTimeout(chk.timer); record({ms:null, kind:'early'});
+      chk.phase = 'tooSoon'; setRing('tooSoon'); chk.timer = setTimeout(nextTrial, 700);
+    } else if (chk.phase === 'stimulus'){
+      clearTimeout(chk.timer);
+      const rt = now - chk.t0;
+      if (rt < 100) record({ms:null, kind:'early'});
+      else record({ms:rt, kind: rt > 500 ? 'slow' : 'valid'});
+      feedback();
+    }
+  });
+  $('cancelCheck').addEventListener('click', () => { stopCheck(); show('home'); });
+  $('useSample').addEventListener('click', () => {
+    stopCheck();
+    finishCheck(firstOfRetest ? makeTrials(2, 41) : makeTrials(6, 7, 0, 1));
+  });
+  $('startCheck').addEventListener('click', () => { firstOfRetest = null; startCheck(); });
+
+  // ---------- result ----------
+  function finishCheck(trials){
+    chk = null;
+    current = {trials, slow: slowOf(trials), retestOf: firstOfRetest};
+    showResult();
+  }
+  function showResult(){
+    show('result');
+    const s = current, total = s.trials.length, lv = level(s.slow);
+    ['resHead','resObs','resCmp','resNote','resActions'].forEach(id => $(id).classList.add('pre'));
+    $('resLabel').textContent = s.retestOf ? 'Second check' : 'Result';
+    $('resNum').textContent = s.slow;
+    $('resNum').style.color = isOff(lv) ? 'var(--a-attn)' : 'var(--a-ink)';
+    $('resText').innerHTML = `slow ${s.slow===1?'response':'responses'}<br>out of ${total}`;
+    $('resContext').textContent =
+      lv==='typical' ? `About your usual ${USUAL}.` :
+      lv==='above' ? `Above your usual ${USUAL}.` :
+      `Well above your usual ${USUAL}, and your slowest reading this month.`;
+
+    // within-check observations
+    const ms = s.trials.filter(t=>t.ms!=null).map(t=>t.ms).sort((a,b)=>a-b);
+    const obs = [];
+    if (ms.length){
+      const mid = ms.length%2 ? ms[(ms.length-1)/2] : (ms[ms.length/2-1]+ms[ms.length/2])/2;
+      const max = ms[ms.length-1];
+      obs.push(s.slow > 0
+        ? `Your slowest response took ${Math.round(max)} ms, ${(max/mid).toFixed(1)} times your typical ${Math.round(mid)} ms.`
+        : `Every response came in under half a second. Your slowest was ${Math.round(max)} ms.`);
+    }
+    const early = s.trials.filter(t=>t.kind==='early').length;
+    if (early) obs.push(`You tapped before the dot appeared ${early===1?'once':early+' times'}. That's anticipating rather than reacting, so it isn't counted as a response.`);
+    const missed = s.trials.filter(t=>t.kind==='missed').length;
+    if (missed) obs.push(`You didn't respond to ${missed===1?'one dot':missed+' dots'} at all within 2.5 seconds.`);
+    $('resObs').innerHTML = obs.map(o=>`<div class="sec"><p>${o}</p></div>`).join('');
+
+    // second-check comparison
+    if (s.retestOf){
+      const f = s.retestOf, d = s.slow - f.slow;
+      const line = d < 0 ? 'Fewer slow responses than your first check. A single comparison is rough.'
+                 : d === 0 ? 'About the same as your first check.' : 'More slow responses than your first check.';
+      $('resCmp').innerHTML = `<div class="sec"><div class="lbl">Compared with your first check</div>
+        <div class="cmp"><div><div class="big" style="color:${isOff(level(f.slow))?'var(--a-attn)':'var(--a-ink)'}">${f.slow}</div><div class="small">First check</div></div>
+        <div><div class="big" style="color:${isOff(lv)?'var(--a-attn)':'var(--a-ink)'}">${s.slow}</div><div class="small">After the nap</div></div></div>
+        <p class="small" style="margin-top:8px">${line}</p></div>`;
+    } else $('resCmp').innerHTML = '';
+
+    $('actRide').className = 'btn ' + (isOff(lv) ? 'fill' : 'out');
+    drawTrace($('resTrace'), s.trials, true, () => {
+      ['resHead','resObs','resCmp','resNote','resActions'].forEach(id => $(id).classList.remove('pre'));
+    });
+  }
+
+  function saveDecision(d){
+    const now = new Date();
+    history.unshift({when:'Thu Oct 16, 7:08 AM', trials: current.trials, decision: d, retest: !!current.retestOf});
+    impact.checks += 1;
+    if (isOff(level(current.slow))){ impact.above += 1; if (d==='ride') impact.rides += 1; }
+  }
+
+  $('actRide').addEventListener('click', () => { saveDecision('ride'); show('ride'); });
+  $('actDrive').addEventListener('click', () => { saveDecision('drive'); show('home'); toast('Saved. Drive safe.'); });
+  $('actNap').addEventListener('click', () => { saveDecision('wait'); firstOfRetest = current; startNap(); });
+
+  $('rideRow').addEventListener('click', () => show('ride'));
+  $('rideRow').addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' '){ e.preventDefault(); show('ride'); } });
+  $('openUber').addEventListener('click', () => toast('In the app, this opens Uber with pickup set to where you are.'));
+  $('rideDone').addEventListener('click', () => show('home'));
+
+  // ---------- nap ----------
+  let napTimer = null, napLeft = 1200;
+  const fmt = s => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  function startNap(){
+    show('nap'); napLeft = 1200;
+    $('napPhase').textContent = 'Nap. Your alarm goes off at 7:30.';
+    $('napActions').innerHTML = '<button class="btn out" id="napSkip">Skip ahead (prototype)</button><button class="btn plain" id="napCancel">Cancel the nap</button>';
+    bindNap();
+    tick(); clearInterval(napTimer); napTimer = setInterval(tick, 1000);
+  }
+  function tick(){
+    $('napClock').textContent = fmt(napLeft); $('islandTime').textContent = fmt(napLeft);
+    if (napLeft > 0) napLeft--;
+  }
+  function bindNap(){
+    $('napSkip').addEventListener('click', () => {
+      clearInterval(napTimer);
+      $('napClock').textContent = 'Ready'; $('islandTime').textContent = '0:00';
+      $('napPhase').textContent = 'You napped and stayed up 15 minutes. Time for the second check.';
+      $('napActions').innerHTML = '<button class="btn fill" id="napCheck">Take the second check</button><button class="btn plain" id="napSample">Use a sample second check</button>';
+      $('napCheck').addEventListener('click', startCheck);
+      $('napSample').addEventListener('click', () => finishCheck(makeTrials(2, 41)));
+    });
+    $('napCancel').addEventListener('click', () => { clearInterval(napTimer); firstOfRetest = null; show('home'); });
+  }
+
+  // ---------- scan ----------
+  $('openScan').addEventListener('click', () => {
+    $('scanTitle').textContent = 'Point your camera at a schedule, or pick a screenshot';
+    $('paper').hidden = false; $('scanFound').hidden = true;
+    $('scanNote').textContent = 'Read on your phone. The schedule never leaves it.';
+    $('scanGo').textContent = 'Read schedule'; $('scanGo').disabled = false;
+    show('scan');
+  });
+  $('scanBack').addEventListener('click', () => show('home'));
+  $('scanGo').addEventListener('click', () => {
+    if ($('scanFound').hidden){
+      $('scanGo').textContent = 'Reading…'; $('scanGo').disabled = true;
+      setTimeout(() => {
+        const shifts = ['Sat Oct 18 · Night · 7 PM to 7 AM','Sun Oct 19 · Night · 7 PM to 7 AM','Wed Oct 22 · Day · 7 AM to 7 PM','Thu Oct 23 · Day · 7 AM to 7 PM','Fri Oct 24 · Night · 7 PM to 7 AM'];
+        $('scanTitle').textContent = `Found ${shifts.length} shifts in your row. Check them before saving.`;
+        $('paper').hidden = true;
+        $('scanFound').hidden = false;
+        $('scanFound').innerHTML = shifts.map((s,i)=>`<label class="check-row" for="sh${i}"><input type="checkbox" id="sh${i}" checked>${s}</label>`).join('');
+        $('scanNote').textContent = 'The on-device model can misread a schedule, so nothing is saved until you confirm.';
+        $('scanGo').textContent = `Add ${shifts.length} shifts`; $('scanGo').disabled = false;
+      }, 1100);
+    } else {
+      const n = $('scanFound').querySelectorAll('input:checked').length;
+      show('home'); toast(`Added ${n} shifts. You'll get a reminder at the end of each one.`);
+    }
+  });
+
+  show('home');
+})();
+</script>
+
+</body>
+</html>
